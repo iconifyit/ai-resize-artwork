@@ -1,0 +1,1175 @@
+/**
+ * @author Scott Lewis <scott@vectoricons.net>
+ * @license The MIT License (MIT)
+ * @copyright 2017 Scott Lewis
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+/**
+ * Set the base include path.
+ */
+// #includepath "inc/";
+
+/**
+ * Include dependencies.
+ */
+#include "Object.ext.js";
+#include "JSON.jsxinc";
+#include "Logger.jsxinc";
+
+/**
+ * Lets get started.
+ * @type {boolean}
+ */
+$.localize = true;
+
+/**
+ * @type {Logger}
+ */
+var logger = new Logger($.fileName, "/var/log/");
+
+/**
+ * Our base object.
+ * @type {{}}
+ */
+var Utils = new Object();
+
+/**
+ * Turn off displaying alerts.
+ */
+Utils.displayAlertsOff = function() {
+    userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+};
+
+/**
+ * Turn on displaying alerts.
+ */
+Utils.displayAlertsOn = function() {
+    try {
+        userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
+    }
+    catch(e) {/* Exit Gracefully */}
+}
+
+/**
+ * Get a value from an object or array.
+ * @param   {object|array}    subject
+ * @param   {string}          key
+ * @param   {*}               dfault
+ * @returns {*}
+ */
+Utils.get = function( subject, key, dfault ) {
+    var value = dfault;
+    if (subject.hasOwnProperty(key)) {
+        value = subject[key];
+    }
+    return value;
+};
+
+/**
+ * Returns the first non-empty value from a set of values.
+ * In this case, non-empty means a string of non-zero length excluding whitespace,
+ * non-empty array, and non-false value.
+ * @param {Array}   values  The set of values to search.
+ * @param {*}       dfault  The default value to return if no non-empty values are found.
+ * @returns {*}
+ */
+Utils.getFirstNonEmptyValue = function(values, dfault) {
+    var result = dfault;
+    for (i=0; i<values.length; i++) {
+        var test = values[i];
+        if (typeof(test) == "string" && Utils.trim(test) == "") continue;
+        if (test instanceof Array && test.length == 0) continue;
+        if (test === null) continue;
+        if (test === false) continue;
+        result = test;
+        break;
+    }
+    return result;
+};
+
+/**
+ * Inspects any string or array for total emptiness.
+ * @param subject
+ * @returns {boolean}
+ */
+Utils.isAllEmpty = function(subject) {
+    if (typeof(subject) == "string" && Utils.trim(subject) == "") return true;
+    if (subject instanceof Array && Utils.trim(subject.join("")) == "") return true;
+    return false;
+};
+
+/**
+ * Wrapper for ExtendScript's garbage collection.
+ */
+Utils.gc = function() {
+    try { $.gc(); }
+    catch(e) {/* Nothing we can do. */}
+};
+
+/**
+ * Updates {Object} target with properties from {Object} source.
+ * Only existing property values are updated. Any properties in
+ * Source that are not in Target will be ignored.
+ * @param   {object}    target  The object that is to be updated.
+ * @param   {object)    source  The object with new values to add to target.
+ * @param   {boolean}   extend  Whether or not to add new values that do not already exist in target.
+ * @returns {object}
+ */
+Utils.update = function(target, source, extend) {
+  for (key in source) {
+      if (! extend && ! target.hasOwnProperty(key)) {
+          continue;
+      }
+      target[key] = source[key];
+  }
+  return target;
+};
+
+/**
+ * Creates a new object from a properties object.
+ * @param properties
+ * @returns {Object}
+ */
+Utils.create = function(properties) {
+    var self = new Object();
+
+    self.uuid = getUUID();
+
+    self.get = function(key, dflt) {
+        if (typeof(self[key]) != 'undefined') {
+            return self[key];
+        }
+        return dflt;
+    };
+
+    for (key in properties) {
+        self[key] = properties[key];
+    }
+
+    function getUUID() {
+        var d = new Date().getTime();
+        if (typeof performance !== 'undefined' && typeof performance.now === 'function'){
+            d += performance.now(); //use high-precision timer if available
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    return self;
+};
+
+/**
+ * Extends {Object} target with properties from {Object} source.
+ * Any values that are already set will not be updated. New properities
+ * will be added to the object.
+ * @param   {object}    target  The object that is to be updated.
+ * @param   {object)    source  The object with new values to add to target.
+ * @param   {boolean}   update  Whether or not to overwrite existing values.
+ * @returns {object}
+ */
+Utils.extend = function(target, source, update) {
+    for (key in source) {
+        if (! update && Utils.get(target, key, false)) {
+            continue;
+        }
+        target[key] = source[key];
+    }
+    return target;
+};
+
+/**
+ * Open a file dialog.
+ * @param   {File} file           The file object
+ * @param   {String} title        The dialog title
+ * @param   {String} file_filter  The file filter pattern
+ * @returns {*}
+ */
+Utils.chooseFile = function(oFile, title, file_filter) {
+    if (! oFile instanceof File) var oFile = new File();
+    if (! title) var title  = LANG.CHOOSE_FILE;
+    if (! filter) var filter = "*";
+    return oFile.openDlg(
+        title,
+        file_filter,
+        false
+    );
+};
+
+/**
+ * Gets the screen dimensions and bounds.
+ * @returns {{left: *, top: *, right: *, bottom: *}}
+ */
+Utils.getScreenSize = function() {
+    var screen;
+
+    for (i=0; i<$.screens.length; i++) {
+        if ($.screens[i].primary == true) {
+            screen = $.screens[i];
+            screen.width = screen.right - screen.left;
+            screen.height = screen.bottom - screen.top;
+        }
+    }
+    return screen;
+};
+
+/**
+ * Create a new dialog, centered on screen.
+ * @param type
+ * @param width
+ * @param height
+ * @param title
+ * @returns {window}
+ */
+Utils.window = function(type, title, width, height) {
+    var dialog = new Window(
+        type, title,
+        [0, 0, width, height]
+    );
+    dialog.center();
+    return dialog;
+};
+
+/**
+ * Saves the file in AI format.
+ * @param {document} doc            The document object to save
+ * @param {string}   path           The file destination path
+ * @param {int}      compatibility  The Adobe Illustrator format (version)
+ * @return void
+ */
+Utils.saveFileAsAi = function( doc, path, compatibility ) {
+    if (app.documents.length > 0) {
+        var theDoc  = new File(path);
+        var options = new IllustratorSaveOptions();
+        if (typeof(compatibility) == 'undefined') {
+            compatibility = Compatibility.ILLUSTRATOR19;
+        }
+        options.compatibility = compatibility;
+        options.flattenOutput = OutputFlattening.PRESERVEAPPEARANCE;
+        options.pdfCompatible = true;
+        doc.saveAs(theDoc, options);
+    }
+};
+
+/**
+ *
+ * @param {string}  str
+ * @returns {XML|string|void}
+ */
+Utils.trim = function(str) {
+    return str.replace(/^\s+|\s+$/g, '');
+};
+
+/**
+ * Logging for this script.
+ * @param {string} message      The logging text
+ * @return void
+ * @deprecated
+ */
+// Utils.logger = function(message, line, filename) {
+//
+//     if (! CONFIG) {
+//         CONFIG = {
+//             LOG_FOLDER    : "/var/log/",
+//             LOG_FILE_PATH : "/var/log/extendscript-utils-" + Utils.dateFormat(new Date().getTime()) + ".log"
+//         }
+//     }
+//
+//     message = message + "\n" + $.error + "\n\nSTACK TRACE: \n\n" + $.stack;
+//
+//     try {
+//         Utils.folder( CONFIG.LOG_FOLDER );
+//         Utils.write_file(CONFIG.LOG_FILE_PATH, "[" + new Date().toUTCString() + "] " + message);
+//     }
+//     catch(ex) {
+//         alert([line, filename, message].join(' - '));
+//     }
+// };
+
+/**
+ * Logging for this script.
+ * @param {string}  path        The file path
+ * @param {string}  txt         The text to write
+ * @param {bool}    replace     Replace the file
+ * @return void
+ */
+Utils.write_file = function( path, txt, replace ) {
+    try {
+        var file = new File( path );
+        if (replace && file.exists) {
+            file.remove();
+            file = new File( path );
+        }
+        file.open("e", "TEXT", "????");
+        file.seek(0,2);
+        $.os.search(/windows/i)  != -1 ? file.lineFeed = 'windows'  : file.lineFeed = 'macintosh';
+        file.writeln(txt);
+        file.close();
+    }
+    catch(ex) {
+        try { file.close(); }
+        catch(ex) {/* Exit Gracefully*/}
+    }
+};
+
+/**
+ * Writes a file and calls a callback.
+ * @param   {string}    path        The file path
+ * @param   {string}    txt         The text to write
+ * @param   {function}  callback    The callback to execute.
+ * @returns {*}                     The result of the callback.
+ */
+Utils.write_and_call = function( path, txt, callback ) {
+    try {
+        var file = new File( path );
+        if (file.exists) {
+            file.remove();
+            file = new File( path );
+        }
+        file.open("e", "TEXT", "????");
+        file.seek(0,2);
+        $.os.search(/windows/i)  != -1 ? file.lineFeed = 'windows'  : file.lineFeed = 'macintosh';
+        file.writeln(txt);
+        file.close();
+        return callback.call(this, file);
+    }
+    catch(ex) {
+        try {
+            file.close();
+        }
+        catch(ex) {/* Exit Gracefully*/}
+        throw ex;
+    }
+};
+
+/**
+ *
+ * @param {string}  path
+ * @param {object}  json
+ * @param {bool}    replace
+ */
+Utils.write_json_file = function( path, json, replace ) {
+    try {
+        Utils.write_file(path, Utils.objectToString(json), replace);
+    }
+    catch(ex) {
+        Utils.logger.error(ex, $.line, $.fileName);
+    }
+};
+
+/**
+ * Reads the contents of a file.
+ * @param   {string}  filepath
+ * @returns {string}
+ */
+Utils.read_file = function( filepath ) {
+
+    var content = "";
+
+    var theFile = new File(filepath);
+
+    if (theFile) {
+
+        try {
+            if (theFile.alias) {
+                while (theFile.alias) {
+                    theFile = theFile.resolve().openDlg(
+                        LANG.CHOOSE_FILE,
+                        "",
+                        false
+                    );
+                }
+            }
+        }
+        catch(ex) {
+            dialog.presetsMsgBox.text = ex.message;
+        }
+
+        try {
+            theFile.open('r', undefined, undefined);
+            if (theFile !== '') {
+                content = theFile.read();
+                theFile.close();
+            }
+        }
+        catch(ex) {
+
+            try { theFile.close(); }catch(ex){};
+            Utils.logger.error(ex, $.line, $.fileName);
+        }
+    }
+    return content;
+};
+
+/**
+ *
+ * @param {string}  filepath
+ * @returns {*}
+ */
+Utils.read_json_file = function(filepath) {
+    var contents, result;
+    try {
+        if ( contents = Utils.read_file( filepath ) ) {
+            result = JSON.parse(contents);
+            if ( typeof(result) != 'object') {
+                result = null;
+            }
+        }
+    }
+    catch(ex) {
+        Utils.logger.error(ex, $.line, $.fileName);
+    }
+    return result;
+};
+
+/**
+ * Replace Mac's tilde home alias with full path.
+ * @param {string}      path    The path to de-mac.
+ * @returns {string}
+ */
+Utils.expand_path = function(path, root_path) {
+    return path.replace('~/', root_path);
+};
+
+/**
+ * Get saved configuration JSON.
+ * @param {String}  config_file     Path to the config file.
+ * @returns {{}}
+ */
+Utils.get_config = function(config_file) {
+    var configFile = new File(config_file);
+    var config = {};
+    try {
+        if (configFile.exists) {
+            config = JSON.parse(Utils.read_file(configFile));
+        }
+    }
+    catch(e) {
+        logger.error($.localize(e.message));
+    }
+    return config;
+};
+
+Utils.tokenize = function(theString) {
+
+    if (typeof(theString) != 'string') return theString;
+    $HOME = new File($HOME).fsName + '/';
+    $HERE = new File($HERE).fsName + '/';
+    var ai_path = Utils.expand_path(
+        decodeURIComponent(Folder(app.path).absoluteURI) + '/'
+    );
+    var tokens = [
+        {'name' : '{{root}}',      'value' : $HERE },
+        {'name' : '{{home}}',      'value' : $HOME },
+        {'name' : '{{documents}}', 'value' : $HOME + 'Documents/' },
+        {'name' : '{{downloads}}', 'value' : $HOME + 'Downloads/' },
+        {'name' : '{{desktop}}',   'value' : $HOME + 'Desktop/' },
+        {'name' : '{{locale}}',    'value' : $.locale },
+        {'name' : '{{ai_path}}',   'value' : ai_path },
+        {'name' : '{{uuid}}',      'value' : CONFIG.UUID }
+    ];
+    for (i=0; i<tokens.length; i++) {
+        theString = theString.replace(tokens[i].name, tokens[i].value);
+    }
+    return theString;
+};
+
+/**
+ * Parses an INI file.
+ * @param {string}  data    The string contents of the INI file.
+ * @returns {{}}    Returns a JSON object of the INI data.
+ */
+Utils.parse_ini = function(data) {
+    var regex = {
+        section: /^\s*\[\s*([^\]]*)\s*\]\s*$/,
+        param: /^\s*([^=]+?)\s*=\s*(.*?)\s*$/,
+        comment: /^\s*;.*$/
+    };
+    var value = {};
+    var lines = data.split(/[\r\n]+/);
+
+    var section = null;
+
+    for (var i=0; i<lines.length; i++) {
+        var line = lines[i];
+        if (regex.comment.test(line)) {
+            continue;
+        }
+        if (regex.param.test(line)) {
+            var match = line.match(regex.param);
+            if (typeof(match) == 'object' && match.length > 1) {
+                match[2] = Utils.trim(match[2]);
+                if (match[2].charAt(0) == "'") {
+                    match[2] = match[2].substring(1, match[2].length);
+                }
+                if (match[2].charAt(match[2].length-1) == "'") {
+                    match[2] = match[2].substring(0, match[2].length-1);
+                }
+            }
+            match[2] = Utils.tokenize(match[2]);
+            if (! isNaN(match[2])) {
+                match[2]
+            }
+            if (section) {
+                value[section][match[1]] = Utils.tokenize(match[2]);
+            }
+            else {
+                value[match[1]] = Utils.tokenize(match[2]);
+            }
+        }
+        else if (regex.section.test(line)) {
+            var match = line.match(regex.section);
+            value[match[1]] = {};
+            section = match[1];
+        }
+        else if (line.length == 0 && section) {
+            section = null;
+        };
+    }
+    return value;
+};
+
+/**
+ *
+ * @param {string}  filepath
+ * @param {bool}    mustconfirm
+ */
+Utils.deleteFile = function( filepath, mustconfirm ) {
+    try {
+        if (mustconfirm && ! confirm(LANG.CONFIRM_DELETE_PRESET)) {
+            return;
+        }
+        new File(filepath).remove();
+    }
+    catch(ex) {
+        Utils.logger.error($.line + ' - ' + $.fileName + ' - ' + $.error);
+    }
+};
+
+/**
+ * Initialize a folder.
+ * @param {string}  path
+ */
+Utils.folder = function( path ) {
+    var theFolder = new Folder( path );
+    if (! theFolder.exists) {
+        theFolder.create();
+    }
+    return theFolder;
+};
+
+/**
+ * Get all files in sub-folders.
+ * @param   {string}  srcFolder
+ * @returns {Array}
+ */
+Utils.getFilesInSubfolders = function( srcFolder ) {
+
+    var allFiles, theFolders, svgFileList;
+
+    if ( ! srcFolder instanceof Folder) return;
+
+    allFiles    = srcFolder.getFiles();
+    theFolders  = [];
+    svgFileList = [];
+
+    for (var x=0; x < allFiles.length; x++) {
+        if (allFiles[x] instanceof Folder) {
+            theFolders.push(allFiles[x]);
+        }
+    }
+
+    if (theFolders.length == 0) {
+        svgFileList = srcFolder.getFiles(/\.svg$/i);
+    }
+    else {
+        for (var x=0; x < theFolders.length; x++) {
+            fileList = theFolders[x].getFiles(/\.svg$/i);
+            for (var n = 0; n<fileList.length; n++) {
+                svgFileList.push(fileList[n]);
+            }
+        }
+    }
+    return svgFileList;
+};
+
+/**
+ * Format the date in YYYY-MM-DD format
+ * @param {string}  date  The date in timestring format
+ * @return {string} date string in YYYY-MM-DD format (2015-10-06)
+ */
+Utils.dateFormat = function(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+};
+
+/**
+ * Stringify an object.
+ * @param   {object}  obj
+ * @returns {string}
+ */
+Utils.objectToString = function(obj) {
+    var items = [];
+    for (key in obj) {
+        var value = obj[key];
+        if (typeof(value) == "array") {
+            for (var i=0; i<value.length; i++) {
+                value[i] = '"' + value[i] + '"';
+            }
+            value = '[' + value.join(',') + ']';
+        }
+        else if (typeof(value) == 'object') {
+            value = objectToString(value);
+        }
+        items.push('"' + key + '": "' + value + '"');
+    }
+    return "{" + items.join(',') + "}";
+};
+
+/**
+ * Align objects to nearest pixel.
+ * @param {array}   sel     Selection array
+ */
+Utils.alignToNearestPixel = function(sel) {
+
+    try {
+        if (typeof sel != "object") {
+            Utils.logger.error($.line + ' - ' + $.fileName + ' - ' + LANG.NO_SELECTION);
+        }
+        else {
+            for (i = 0 ; i < sel.length; i++) {
+                sel[i].left = Math.round(sel[i].left);
+                sel[i].top = Math.round(sel[i].top);
+            }
+            redraw();
+        }
+    }
+    catch(ex) {
+        Utils.logger.error($.line + ' - ' + $.fileName + ' - ' + $.error);
+    }
+};
+
+/**
+ * Cleans up the filename/artboardname.
+ * @param   {String}    name    The name to filter and reformat.
+ * @returns  {String}            The cleaned up name.
+ */
+Utils.filterName = function(name) {
+    return decodeURIComponent(name).replace(' ', '-');
+}
+
+/**
+ * Test if all parents are visible & unlocked.
+ * @param {object} item
+ * @returns {boolean}
+ */
+Utils.isVisibleAndUnlocked = function(item) {
+    return ! Utils.anyParentLocked(item) && ! Utils.anyParentHidden(item);
+};
+
+/**
+ * Derived from P. J. Onori's Iconic SVG Exporter.jsx
+ * @param {object} item
+ * @returns {boolean}
+ */
+Utils.anyParentLocked = function(item) {
+    while ( item.parent ) {
+        if ( item.parent.locked ) {
+            return true;
+        }
+        item = item.parent;
+    }
+    return false;
+};
+
+/**
+ * Derived from P. J. Onori's Iconic SVG Exporter.jsx
+ * @param {object} item
+ * @returns {boolean}
+ */
+Utils.anyParentHidden = function(item) {
+    while ( item.parent ) {
+        if ( item.parent.hidden ) {
+            return true;
+        }
+        item = item.parent;
+    }
+    return false;
+};
+
+/**
+ * Groups selected items.
+ * @returns void
+ */
+Utils.groupSelection = function() {
+    try {
+        app.executeMenuCommand('group');
+    }
+    catch(e) {
+        alert(localize({en_US: "Items could not be grouped (line: %1, file: %2)"}, $.line, $.fileName));
+    }
+};
+
+/**
+ * Center the imported artwork on the artboard.
+ * @param {Object}  item        The item to center.
+ * @param {int}     abWidth     The width of the artboards
+ * @param {int}     abHeight    The height of the artboard
+ * @param {int}     scale       The scale of the item. Min 10%, max not to exceed artboard size.
+ */
+Utils.centerArtwork = function(item, abWidth, abHeight, scale) {
+    try {
+        item.position = [
+            Math.floor((abWidth - item.width) / 2),
+            Math.floor((abHeight - item.height) / 2) * -1
+        ];
+        scale = isNaN(scale) ? 100 : scale;
+
+        scale = Utils.autoScale(item.width, item.height, abWidth, abHeight);
+
+        if (typeof(item.resize) == "function" && scale != 100) {
+            item.resize(scale, scale, true, true, true, true, scale);
+        }
+        redraw();
+    }
+    catch(ex) {
+        try {
+            item.position = [0, 0];
+            redraw();
+        }
+        catch(ex) {
+            // $.writeln("[ERROR] " + ex.getMessage());
+        }
+    }
+};
+
+/**
+ * Center the imported artwork on the artboard.
+ * @param {Object}  item        The item to center.
+ *  * @param {int}  itemWidth   The width of the item
+ * @param {int}     itemHeight  The height of the item
+ * @param {int}     abWidth     The width of the artboards
+ * @param {int}     abHeight    The height of the artboard
+ * @param {int}     scale       The scale of the item. Min 10%, max not to exceed artboard size.
+ */
+Utils.resizeArtwork = function(item, itemWidth, itemHeight, abWidth, abHeight, scale) {
+    try {
+        item.position = [
+            Math.floor((abWidth - itemWidth) / 2),
+            Math.floor((abHeight - itemHeight) / 2) * -1
+        ];
+
+        scale = isNaN(scale) ? 100 : scale;
+        var autoScale = Utils.autoScale(itemWidth, itemHeight, abWidth, abHeight);
+        scale = autoScale < scale ? autoScale : scale ;
+
+        if (typeof(item.resize) == "function" && scale != 100) {
+            item.resize(scale, scale, true, true, true, true, scale);
+        }
+    }
+    catch(ex) {
+        try {
+            item.position = [0, 0];
+        }
+        catch(ex) {
+            $.writeln("[ERROR] " + ex.getMessage());
+        }
+    }
+    redraw();
+};
+
+/**
+ * Calculate the scale necessary to fit the icon to the artboard.
+ * @param {number}      itemWidth   The item width
+ * @param {number}      itemHeight  The item height
+ * @param {number}      maxWidth    The maximum width
+ * @param {number}      maxHeight   The maximum height
+ * @returns {number}
+ *
+ * NOTE: All values in this comparison are converted to integers
+ * for better performance. Comparing floats is inaccurate and
+ * expensive.
+ */
+Utils.autoScale = function(itemWidth, itemHeight, maxWidth, maxHeight) {
+    var hScale = 100,
+        vScale = 100;
+
+    itemWidth  = Math.floor(itemWidth);
+    itemHeight = Math.floor(itemHeight);
+    maxWidth   = Math.floor(maxWidth);
+    maxHeight  = Math.floor(maxHeight);
+
+    if (itemWidth > maxWidth) {
+        hScale = Math.floor((maxWidth / itemWidth) * 100);
+    }
+
+    if (itemHeight > maxHeight) {
+        vScale = Math.floor((maxHeight / itemHeight) * 100);
+    }
+
+    $.writeln("autoScale : " + itemWidth + ", " + itemHeight + ", " + maxWidth + ", " + maxHeight);
+    $.writeln( hScale + ", " + vScale );
+
+    return Math.min(hScale, vScale);
+};
+
+/**
+ * Calculate the scale percentage based on fixed size dimensions.
+ * @param   {number}  oldWidth      The existing width.
+ * @param   {number}  oldHeight     The existing height.
+ * @param   {number}  newWidth      The target width.
+ * @param   {number}  newHeight     The target height.
+ * @returns {number}
+ */
+Utils.scaleFromSize = function(oldWidth, oldHeight, newWidth, newHeight) {
+    var hScale = 100,
+        vScale = 100;
+
+    oldWidth  = Math.floor(oldWidth);
+    oldHeight = Math.floor(oldHeight);
+    newWidth  = Math.floor(newWidth);
+    newHeight = Math.floor(newHeight);
+
+    hScale = Math.floor((oldWidth / newWidth) * 100);
+    if (oldWidth > newWidth) {
+        hScale = Math.floor((newWidth / oldWidth) * 100);
+    }
+
+    vScale = Math.floor((oldHeight / newHeight) * 100);
+    if (oldHeight > newHeight) {
+        vScale = Math.floor((newHeight / oldHeight) * 100);
+    }
+    return Math.min(hScale, vScale);
+};
+
+/**
+ * Display a new progress bar.
+ * @param maxvalue
+ * @returns {*}
+ */
+Utils.showProgressBar = function(maxvalue) {
+
+    var top, left;
+
+    try {
+        if ( bounds = Utils.getScreenSize() ) {
+            left = Math.abs(Math.ceil((bounds.width/2) - (450/2)));
+            top = Math.abs(Math.ceil((bounds.height/2) - (100/2)));
+        }
+
+        var progress = new Window("palette", 'Progress', [left, top, left + 450, top + 120]);
+        progress.pnl = progress.add("panel", [10, 10, 440, 100], 'Progress');
+        progress.pnl.progBar = progress.pnl.add("progressbar", [20, 45, 410, 60], 0, maxvalue);
+        progress.pnl.progBarLabel = progress.pnl.add("statictext", [20, 20, 320, 35], "0 of " + maxvalue);
+
+        progress.show();
+
+        Utils.progress = progress;
+    }
+    catch(ex) {
+        throw new Error(ex);
+    }
+};
+
+/**
+ * Hides and destroys the progress bar.
+ */
+Utils.hideProgressBar = function() {
+    Utils.progress.hide();
+    Utils.progress = null;
+}
+
+/**
+ * Updates the progress bar.
+ * @param progress
+ * @returns {*}
+ */
+Utils.updateProgress = function(message) {
+    Utils.progress.pnl.progBar.value++;
+    var val = Utils.progress.pnl.progBar.value;
+    var max = Utils.progress.pnl.progBar.maxvalue;
+    Utils.progress.pnl.progBarLabel.text = val + ' of ' + max + ' - ' + message;
+    $.sleep(10);
+    Utils.progress.update();
+};
+
+/**
+ * Updates the progress bar.
+ * @param progress
+ * @returns {*}
+ */
+Utils.updateProgressMessage = function(message) {
+    var val = Utils.progress.pnl.progBar.value;
+    var max = Utils.progress.pnl.progBar.maxvalue;
+    Utils.progress.pnl.progBarLabel.text = val + ' of ' + max + ' - ' + message;
+    $.sleep(10);
+    Utils.progress.update();
+};
+
+/**
+ * Alias for localize function.
+ * @param str
+ * @param vars
+ * @returns {*}
+ */
+Utils.i18n = function(str, vars) {
+    return localize({en_US: str}, vars);
+};
+
+/**
+ * Create a new error with localized message.
+ * @param msg
+ * @param vars
+ * @returns {Error}
+ */
+Utils.error = function(msg, vars) {
+    var errorMessage = localize({en_US: msg}, vars || [] );
+    if (Utils.logger) {
+        Utils.logger.error(errorMessage);
+    }
+    return new Error(errorMessage);
+};
+
+/**
+ * Converts a string, array, or object to dash-separated string.
+ * @param   {string|array|object}   subject    A string, array, or object to convert to a slug.
+ * @returns {string}                           The cleaned up name.
+ */
+Utils.slugger = function(subject) {
+    if (typeof(subject) == "array") {
+        return subject.join('-');
+    }
+    else if (typeof(subject) == "object") {
+        var bits = [];
+        for (key in subject) {
+            if (typeof(subject[key]) != "string") continue;
+            bits.push(subject[key].toLowerCase());
+        }
+        return bits.join('-');
+    }
+    else if (typeof(subject) == "string") {
+        return decodeURIComponent(subject).replace(' ', '-');
+    }
+    return subject;
+};
+
+/**
+ * Gets the artboard index of the current selection. This is a brute-force approach
+ * and not the ideal solution but it's the best we can currently do.
+ * @author  carlos canto 09/28/2013
+ * @see     http://forums.adobe.com/message/5721205?tstart=0#5721205
+ * @param   {GroupItem}     The selection for which see want the artboard.
+ * @returns {integer}       Returns the index of the artboard.
+ */
+Utils.getArtboardOfGroupItem = function(groupItem) {
+
+    var index = -1;
+    var doc   = app.activeDocument;
+
+    // Loop through each artboard.
+    for(i=0; i<doc.artboards.length; i++) {
+
+        // Activate each artboard.
+        doc.artboards.setActiveArtboardIndex(i);
+
+        // Select all items on the artboard.
+        doc.selectObjectsOnActiveArtboard();
+
+        // Test our original selection to see if it is now selected.
+        index = doc.artboards.getActiveArtboardIndex();
+
+        if (groupItem.selected) {
+            return doc.artboards.getActiveArtboardIndex();
+        }
+
+        // We didn't find our object, keep going.
+        doc.selection = null;
+    }
+
+    return index;
+};
+
+/**
+ * Get the index of an artboard by its name.
+ * @param {string} name
+ * @returns {number}
+ */
+Utils.getArtboardIndexByName = function(name) {
+    var doc = app.activeDocument;
+    if (artboard = doc.artboards.getByName(name)) {
+        for (i = 0; i < doc.artboards.length; i++) {
+            if (doc.artboards[i] == artboard) {
+                return i;
+            }
+        }
+    }
+    return -1;
+};
+
+/**
+ * Get the artboard index using the name of the items on the artboard.
+ * @param itemName
+ * @returns {number}
+ */
+Utils.getArtboardIndexItemByName = function(itemName) {
+
+    var index = -1;
+    var doc   = app.activeDocument;
+
+    // Loop through each artboard.
+    for(i = 0; i < doc.artboards.length; i++) {
+
+        // Activate each artboard.
+        doc.artboards.setActiveArtboardIndex(i);
+
+        // Select all items on the artboard.
+        doc.selectObjectsOnActiveArtboard();
+
+        logger.info("Checking artboard " + i + " for item " + itemName);
+
+        if (doc.selection.length) {
+            logger.info("Selected items on artboard " + i);
+            if (typeof(doc.selection.name) != "undefined") {
+                logger.inf("Found named selection on artboard " + i);
+                if (doc.selection.name.toUpperCase() == itemName.toUpperCase()) {
+                    logger.info("Found item " + itemName + " on artboard " + i);
+                    return doc.artboards.getActiveArtboardIndex();
+                }
+            }
+        }
+
+        // We didn't find our object, keep going.
+        doc.selection = null;
+    }
+
+    return index;
+}
+
+/**
+ * Set active artboard by name.
+ * @param {string} name
+ */
+Utils.setActiveArtboardByName = function(name) {
+    var doc = app.activeDocument;
+    doc.artboards.setActiveArtboardIndex(Utils.getArtboardIndexByName(name));
+};
+
+/**
+ * Get a unique universal identifier.
+ * RFC4122 version 4 compliant.
+ * @returns {string}
+ * @deprected use Utils.uuid() instead.
+ */
+Utils.generateUUID = function() {
+    Utils.uuid();
+};
+
+/**
+ * Get a unique universal identifier.
+ * RFC4122 version 4 compliant.
+ * @returns {string}
+ */
+Utils.uuid = function() {
+    var d = new Date().getTime();
+    if (typeof performance !== 'undefined' && typeof performance.now === 'function'){
+        d += performance.now(); //use high-precision timer if available
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+};
+
+/**
+ * @experimental
+ * Rename artboard groupItems by artboard name
+ */
+Utils.renameGroupItemsByArtboardNames = function() {
+    var doc = app.activeDocument;
+    for (i = 0; i < doc.artboards.length; i++) {
+        doc.artboards.setActiveArtboardIndex(i);
+        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+        doc.selectObjectsOnActiveArtboard();
+        app.executeMenuCommand('group');
+        selection.name = ab.name.indexOf("Artboard ") != -1 ? "Group " + i : ab.name;
+    }
+};
+
+/**
+ * Opens a folder in the Finder. If `thePath` is not defined,
+ * the active document in Illustrator will be used. If no documents
+ * are open, it will error out.
+ * @param {string} thePath
+ */
+Utils.showInFinder = function(thePath) {
+    if (typeof(thePath) == 'undefined' && app.documents.length > 0) {
+        thePath = app.activeDocument.path;
+    }
+    try {
+        new Folder(thePath).execute();
+    }
+    catch(e) {
+        alert(e);
+    }
+};
+
+/**
+ * Illustrator does not appear to have a built-in setTimeout method.
+ * This method tries to add the behavior.
+ * @param callback
+ * @param duration
+ */
+Utils.setTimeout = function(callback, duration) {
+    if (typeof(setTimeout) == "function") {
+        setTimeout(callback, duration);
+    }
+    else {
+        var counter = 0;
+        while (counter < duration) {
+            $.sleep(duration/10);
+            counter += duration/10;
+        }
+        callback.call(this);
+    }
+};
+
+
+/**
+ * Simple introspection to view an objects properties and values.
+ * @param   {*}     theThing    The thing to debug.
+ * @returns {null}
+ */
+Utils.dump = function(theThing) {
+    for (key in theThing) {
+        $.writeln(key + " => " + theThing[key])
+    }
+    return null;
+};
