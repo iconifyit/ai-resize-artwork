@@ -105,7 +105,7 @@ var Module = (function(CONFIG) {
 
             var doc   = app.activeDocument;
             var count = doc.artboards.length;
-            
+
             var theUnit  = null;
             var theValue = null;
 
