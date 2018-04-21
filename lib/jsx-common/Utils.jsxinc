@@ -787,8 +787,8 @@ Utils.resizeArtwork = function(item, itemWidth, itemHeight, abWidth, abHeight, s
         ];
 
         scale = isNaN(scale) ? 100 : scale;
-        var autoScale = Utils.autoScale(itemWidth, itemHeight, abWidth, abHeight);
-        scale = autoScale < scale ? autoScale : scale ;
+        // var autoScale = Utils.autoScale(itemWidth, itemHeight, abWidth, abHeight);
+        // scale = autoScale < scale ? autoScale : scale ;
 
         if (typeof(item.resize) == "function" && scale != 100) {
             item.resize(scale, scale, true, true, true, true, scale);
@@ -849,24 +849,23 @@ Utils.autoScale = function(itemWidth, itemHeight, maxWidth, maxHeight) {
  * @returns {number}
  */
 Utils.scaleFromSize = function(oldWidth, oldHeight, newWidth, newHeight) {
-    var hScale = 100,
-        vScale = 100;
+    var scale = 100;
 
-    oldWidth  = Math.floor(oldWidth);
-    oldHeight = Math.floor(oldHeight);
-    newWidth  = Math.floor(newWidth);
-    newHeight = Math.floor(newHeight);
+    var targetSize  = Math.floor(newWidth);
+    var currentSize =  oldWidth > oldHeight ? oldWidth : oldHeight;
 
-    hScale = Math.floor((oldWidth / newWidth) * 100);
-    if (oldWidth > newWidth) {
-        hScale = Math.floor((newWidth / oldWidth) * 100);
+    if (currentSize > targetSize) {
+        // Existing size is larger than new size
+        // We need to scale down
+        scale = Math.floor((targetSize / currentSize) * 100);
+    }
+    else {
+        // Existing size is smaller than new size
+        // We need to scale up
+        scale = Math.floor((targetSize / currentSize) * 100);
     }
 
-    vScale = Math.floor((oldHeight / newHeight) * 100);
-    if (oldHeight > newHeight) {
-        vScale = Math.floor((newHeight / oldHeight) * 100);
-    }
-    return Math.min(hScale, vScale);
+    return scale;
 };
 
 /**

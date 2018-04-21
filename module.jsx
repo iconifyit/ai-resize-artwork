@@ -153,6 +153,25 @@ var Module = (function(CONFIG) {
                         groupItem.width, groupItem.height,
                         theValue, theValue
                     );
+                    if (theValue > abWidth || theValue > abHeight) {
+                        Utils.progress.close();
+                        throw new Error("The artwork cannot be larger than the artboard. It will cause errors");
+                        return;
+                    }
+                    var ratio = CONFIG.SCALE / 100;
+                    if (ratio * groupItem.width > abWidth || ratio * groupItem.height > abHeight) {
+                        Utils.progress.close();
+                        throw new Error("The artwork cannot be larger than the artboard. It will cause errors");
+                        return;
+                    }
+                }
+
+                Utils.logger.info( "Calculated scale : " + CONFIG.SCALE + "%" );
+
+                if (isNaN(CONFIG.SCALE)) {
+                    Utils.progress.close();
+                    throw new Error("Scale must be a numeric value expressed as a percentage or exact size");
+                    return;
                 }
 
                 try {
@@ -179,8 +198,9 @@ var Module = (function(CONFIG) {
                     );
                 }
                 catch(e) {
+                    Utils.progress.close();
                     Utils.logger.error(e.message);
-                    $.writeln("[ERROR] " + e.message);
+                    // $.writeln("[ERROR] " + e.message);
                 }
                 redraw();
                 Utils.updateProgress(localize({en_US: 'Selection centered'}));
