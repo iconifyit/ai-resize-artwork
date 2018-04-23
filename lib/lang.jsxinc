@@ -61,5 +61,10 @@ var LANG = {
     SCRIPT_PROGRESS        : 'Progress',
     SCRIPT_CONFIG_FAILURE  : 'The script configuration could not be initialized.',
     META_JSON_LOAD_FAILURE : 'The meta data JSON object could not be loaded [%1].',
-    NO_META_TAGS_FOUND     : 'The meta data JSON object did not contain any tags [%1].'
+    NO_META_TAGS_FOUND     : 'The meta data JSON object did not contain any tags [%1].',
+    ENTER_NEW_SIZE         : "Enter the new size for the artboards. You can specify a percentage or pixels. Ex: 100% or 128px",
+    NO_VISIBLE_ITEMS       : 'Artboard %1 has no visible items. Skipping.',
+    ITEM_MUST_FIT_ARTBOARD : "The artwork cannot be larger than the artboard. It will cause errors",
+    SCALE_MUST_BE_NUMBER   : "Scale must be a numeric value expressed as a percentage or exact size",
+    CALCULATED_SIZE        : "Calculated scale : %1 %"
 };
