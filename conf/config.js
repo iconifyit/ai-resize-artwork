@@ -6,7 +6,7 @@
  *     CONFIG_FILE_PATH: string
  * }}
  */
-var DEFAULT_CONFIG = {
+var MY_CONFIG = {
 
     // Enable logging
 

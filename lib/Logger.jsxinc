@@ -115,10 +115,11 @@ Logger.prototype = {
      * @param message
      */
     log : function(message, type) {
-        Utils.write_file(
-            this.file.absoluteURI,
-            "[" + this.types[type] + "][" + new Date().toUTCString() + "] " + message
-        );
+        var theMessage = "[" + $UUID + "][" + this.types[type] + "]"
+            + "[" + new Date().toUTCString() + "] " + message;
+
+        Utils.write_file(this.file.absoluteURI, theMessage);
+        $.writeln( theMessage );
     },
 
     /**

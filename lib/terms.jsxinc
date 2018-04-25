@@ -32,7 +32,7 @@
  *     NO_META_TAGS_FOUND     : string
  * }}
  */
-var LANG = {
+var TERMS = {
     CHOOSE_FOLDER          : 'Choose IconJar archive',
     CHOOSE_FILE            : 'Choose an IconJar archive to import.',
     NO_SELECTION           : 'No selection',
@@ -66,5 +66,13 @@ var LANG = {
     NO_VISIBLE_ITEMS       : 'Artboard %1 has no visible items. Skipping.',
     ITEM_MUST_FIT_ARTBOARD : "The artwork cannot be larger than the artboard. It will cause errors",
     SCALE_MUST_BE_NUMBER   : "Scale must be a numeric value expressed as a percentage or exact size",
-    CALCULATED_SIZE        : "Calculated scale : %1 %"
+    CALCULATED_SIZE        : "Calculated scale : %1 %",
+    NO_OPEN_DOCS           : 'There are no open documents',
+    GROUPING_SELECTION     : 'Grouping selection',
+    SELECTION_VISIBLE      : 'Selection is %1',
+    SELECTION_CENTERED     : 'Selection centered',
+    VISIBLE                : 'Visible',
+    HIDDEN                 : 'Hidden',
+    ITEM_UPDATED           : 'Item updated',
+    INVALID_USER_INPUT     : 'User did not enter a valid scale value'
 };
