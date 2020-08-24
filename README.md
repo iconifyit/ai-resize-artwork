@@ -12,6 +12,11 @@ This script is primarily written for icons but will work with any artwork arrang
 
 WIP
 
-## Please Donate
+***
+#### Support Open Source Development
 
-You can donate to this or any of my other open source projects at [https://paypal.me/iconify](https://paypal.me/iconify)
+Donations help open source developers, who are often self-employed freelancers, continue to create free resources. You can donate to this project using the button below.
+
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=SZQVVSQDZS75A)
+
+***
